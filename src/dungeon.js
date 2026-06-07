@@ -202,11 +202,12 @@ class Dungeon {
 
     // ── Vault check (static files first) ──────────────────────────
     for (const { prefix, handler } of this._vaults) {
-      if (adventurer.path.startsWith(prefix)) {
-        this._log(adventurer, 200, startTime);
-        handler(adventurer, socket);
+    if (adventurer.path.startsWith(prefix)) {
+        handler(adventurer, socket, (statusCode) => {
+        this._log(adventurer, statusCode, startTime);
+        });
         return;
-      }
+    }
     }
 
     // ── Run spell pipeline then dispatch to quest ──────────────────

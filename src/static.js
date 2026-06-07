@@ -44,56 +44,54 @@ function openVault(vaultDir, options = {}) {
    * @param {object}     adventurer
    * @param {net.Socket} socket
    */
-  return function vaultHandler(adventurer, socket) {
-    // Strip the URL prefix to get the relative file path
-    let urlPath = adventurer.path;
-    if (prefix && urlPath.startsWith(prefix)) {
-      urlPath = urlPath.slice(prefix.length) || '/';
-    }
+  return function vaultHandler(adventurer, socket, onStatus) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(adventurer.path.startsWith(prefix)
+      ? adventurer.path.slice(prefix.length) || '/'
+      : adventurer.path);
+  } catch {
+    if (onStatus) onStatus(400);
+    banishRaw(socket, 400, 'Bad request path');
+    return;
+  }
 
-    // Decode and normalize the path
-    let decoded;
-    try {
-      decoded = decodeURIComponent(urlPath);
-    } catch {
-      banishRaw(socket, 400, 'Bad request path');
+  const filePath     = path.join(resolvedVault, decoded);
+  const resolvedFile = path.resolve(filePath);
+
+  if (!resolvedFile.startsWith(resolvedVault + path.sep) &&
+      resolvedFile !== resolvedVault) {
+    if (onStatus) onStatus(403);
+    banishRaw(socket, 403, 'Access denied — the dungeon guards this path.');
+    return;
+  }
+
+  fs.stat(resolvedFile, (err, stats) => {
+    if (!err && stats.isDirectory()) {
+      const indexPath = path.join(resolvedFile, indexFile);
+      fs.stat(indexPath, (idxErr, idxStats) => {
+        if (!idxErr && idxStats.isFile()) {
+          if (onStatus) onStatus(200);
+          streamRelic(socket, indexPath);
+        } else {
+          if (onStatus) onStatus(403);
+          banishRaw(socket, 403, 'Directory listing is forbidden.');
+        }
+      });
       return;
     }
 
-    // Build and resolve the full file path
-    const filePath     = path.join(resolvedVault, decoded);
-    const resolvedFile = path.resolve(filePath);
-
-    // ── Security: block directory traversal ────────────────────────
-    if (!resolvedFile.startsWith(resolvedVault + path.sep) &&
-        resolvedFile !== resolvedVault) {
-      banishRaw(socket, 403, 'Access denied — the dungeon guards this path.');
+    if (err || !stats.isFile()) {
+      if (onStatus) onStatus(404);
+      banishRaw(socket, 404, `Relic not found: ${decoded}`);
       return;
     }
 
-    // ── Check if path is a directory → try index file ──────────────
-    fs.stat(resolvedFile, (err, stats) => {
-      if (!err && stats.isDirectory()) {
-        const indexPath = path.join(resolvedFile, indexFile);
-        fs.stat(indexPath, (idxErr, idxStats) => {
-          if (!idxErr && idxStats.isFile()) {
-            streamRelic(socket, indexPath);
-          } else {
-            banishRaw(socket, 403, 'Directory listing is forbidden in this dungeon.');
-          }
-        });
-        return;
-      }
+    if (onStatus) onStatus(200);
+    streamRelic(socket, resolvedFile);
+  });
+};
 
-      if (err || !stats.isFile()) {
-        banishRaw(socket, 404, `Relic not found: ${urlPath}`);
-        return;
-      }
-
-      // ── All clear — stream the file ─────────────────────────────
-      streamRelic(socket, resolvedFile);
-    });
-  };
 }
 
 /** Quick error response without needing a full forgeResponses call */
