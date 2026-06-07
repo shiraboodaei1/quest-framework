@@ -1,0 +1,2 @@
+⚔️ You found a relic in the Quest Vault!
+If you can read this, static file serving is working perfectly.

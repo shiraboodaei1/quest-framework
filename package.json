@@ -1,0 +1,14 @@
+{
+  "name": "quest-framework",
+  "version": "1.0.0",
+  "description": "⚔️ An RPG-themed HTTP framework built on Node.js net module. No dependencies.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node demo.js",
+    "demo": "node demo.js"
+  },
+  "keywords": ["http", "framework", "net", "rpg", "quest"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {}
+}
